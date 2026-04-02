@@ -17,10 +17,7 @@ Gmail Trigger → Python Clean → Gemini API → Gmail Reply → Google Sheets 
 
 ## Setup
 1. Clone this repo
-2. Copy `.env.example` to `.env` and fill in your API keys
+2. Copy `.env` and fill in your API keys
 3. Import `n8n/workflow.json` into your n8n instance
 4. Connect your Gmail, Google Sheets and Slack credentials
 5. Activate the workflow
-
-## Sample Output
-See `sample_outputs/` for example LLM responses.

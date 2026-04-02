@@ -1,0 +1,316 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        -112
+      ],
+      "id": "02f1deb4-44a3-484b-a73f-302464813fde",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "pythonNative",
+        "pythonCode": "body = _item[\"json\"].get(\"snippet\", \"\")\nclean_body = body.strip()[:1500]\nreturn {\"json\": {\"clean_body\": clean_body}}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        288
+      ],
+      "id": "dbb2191d-74c3-44b1-8773-abaaad66559c",
+      "name": "Code in Python"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=API_KEY",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are an email assistant. Given this email, return only a raw JSON object with no markdown, no backticks, no code blocks. Start with { and end with }. Fields: category (support/sales/spam/general), priority (high/medium/low), reply (professional 3 sentence reply).\\n\\nEmail: {{ $json.clean_body }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -32,
+        304
+      ],
+      "id": "542a59ef-e0ee-426d-9300-02baded02798",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "message": "={{ $('HTTP Request').item.json.candidates[0].content.parts[0].text.split('\"reply\": \"')[1].split('\"')[0] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        688
+      ],
+      "id": "531a9dde-2b8b-4168-9adc-b79e67f085d5",
+      "name": "Reply to a message",
+      "webhookId": "",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "Your_Google_Sheet_ID",
+          "mode": "list",
+          "cachedResultName": "Email logs",
+          "cachedResultUrl": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sender": "={{ $('Gmail Trigger').item.json.from }}",
+            "Subject": "={{ $('Gmail Trigger').item.json.subject }}",
+            "Reply": "={{ $('HTTP Request').item.json.candidates[0].content.parts[0].text.split('\"reply\": \"')[1].split('\"')[0] }}",
+            "Timestamp": "={{ $now }}",
+            "Category": "={{ $('HTTP Request').item.json.candidates[0].content.parts[0].text.split('\"category\": \"')[1].split('\"')[0] }}",
+            "Priority": "={{ $('HTTP Request').item.json.candidates[0].content.parts[0].text.split('\"priority\": \"')[1].split('\"')[0] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sender",
+              "displayName": "sender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Subject",
+              "displayName": "Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reply",
+              "displayName": "Reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        288
+      ],
+      "id": "19859796-d6bd-4e7e-b05f-bb42de2a1f97",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "SLACK_CHANNEL_ID",
+          "mode": "list",
+          "cachedResultName": "all-email-bot"
+        },
+        "text": "=📧 New email handled!\nFrom: {{ $('Gmail Trigger').item.json.from }}\nSubject: {{ $('Gmail Trigger').item.json.subject }}\nCategory: {{ $('HTTP Request').item.json.candidates[0].content.parts[0].text.split('\"category\": \"')[1].split('\"')[0] }}\nPriority: {{ $('HTTP Request').item.json.candidates[0].content.parts[0].text.split('\"priority\": \"')[1].split('\"')[0] }}\nReply sent ✅",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        576,
+        288
+      ],
+      "id": "ad15459d-223b-4ae0-a310-9b8b949365f3",
+      "name": "Send a message",
+      "webhookId": "",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "pythonNative",
+        "pythonCode": "text = _item[\"json\"][\"candidates\"][0][\"content\"][\"parts\"][0][\"text\"]\nstart = text.find(\"{\")\nend = text.rfind(\"}\") + 1\nclean = text[start:end]\nreply_start = clean.find('\"reply\": \"') + 10\nreply_end = clean.rfind('\"')\nreply = clean[reply_start:reply_end]\nreturn {\"json\": {\"reply\": reply}}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        16
+      ],
+      "id": "709bd185-2ae1-4128-9a1e-e18f1051439b",
+      "name": "Code in Python1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code in Python": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in Python1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to a message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in Python1": {
+      "main": [
+        [
+          {
+            "node": "Reply to a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "75b35d11-f180-4033-b603-71cddad6c606",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "Your_Instance_ID"
+  },
+  "id": "Your_Workflow_ID",
+  "tags": []
+}
